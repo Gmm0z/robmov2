@@ -1,0 +1,58 @@
+<launch>
+  <!-- Common Arguments -->
+  <arg name="model" default="waffle_pi" doc="model type [burger, waffle, waffle_pi]"/> <!-- Set default to waffle_pi -->
+
+  <!-- Arguments for SLAM and Visualization -->
+  <arg name="slam_methods" default="gmapping" doc="slam type [gmapping, cartographer, hector, karto, frontier_exploration]"/>
+  <arg name="configuration_basename" default="turtlebot3_lds_2d.lua"/>
+  <arg name="open_rviz" default="true"/>
+
+  <!-- Arguments for move_base -->
+  <arg name="cmd_vel_topic" default="/cmd_vel" />
+  <arg name="odom_topic" default="odom" />
+  <arg name="move_forward_only" default="false"/>
+
+  <!-- TurtleBot3 and SLAM Components -->
+  <include file="$(find turtlebot3_bringup)/launch/turtlebot3_remote.launch">
+    <arg name="model" value="$(arg model)" />
+  </include>
+
+  <include file="$(find turtlebot3_slam)/launch/turtlebot3_$(arg slam_methods).launch">
+    <arg name="model" value="$(arg model)"/>
+    <arg name="configuration_basename" value="$(arg configuration_basename)"/>
+  </include>
+
+  <!-- RViz -->
+  <group if="$(arg open_rviz)"> 
+    <node pkg="rviz" type="rviz" name="rviz" required="true"
+          args="-d $(find turtlebot3_slam)/rviz/turtlebot3_$(arg slam_methods).rviz"/>
+  </group>
+
+  <!-- move_base -->
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
+    <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_$(arg model).yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_$(arg model).yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find turtlebot3_navigation)/param/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find turtlebot3_navigation)/param/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find turtlebot3_navigation)/param/move_base_params.yaml" command="load" />
+    <rosparam file="$(find turtlebot3_navigation)/param/dwa_local_planner_params_$(arg model).yaml" command="load" />
+    <remap from="cmd_vel" to="$(arg cmd_vel_topic)"/>
+    <remap from="odom" to="$(arg odom_topic)"/>
+    <param name="DWAPlannerROS/min_vel_x" value="0.0" if="$(arg move_forward_only)" />
+  </node>
+
+
+
+  <!-- Maze and Gazebo-related Settings -->
+<node pkg="tf" type="static_transform_publisher" name="camera_tf" 
+     args="-1.95 -0.55 2.0 -1.58 0 -1.58 /odom /camera_link 100"/>
+<include file="$(find plywood_mazes)/launch/maze_3_6x6.launch" />
+  <param name="robot_description" command="$(find xacro)/xacro $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro" />
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" 
+        args="-urdf -model turtlebot3_waffle_pi -x 0.0 -y 2.0 -z 0.0 -param robot_description" />
+
+<include file="$(find explore_lite)/launch/explore.launch">
+    <!-- Add any necessary arguments here, if required by explore.launch -->
+  </include>
+</launch>

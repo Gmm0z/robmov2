@@ -1,0 +1,8 @@
+prefix=/home/palko/robmov2/install
+
+Name: plywood_mazes
+Description: Description of plywood_mazes
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
